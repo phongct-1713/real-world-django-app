@@ -17,12 +17,14 @@ Including another URLconf
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
-from blog.views import home, login
+from blog.views import home
+from user.views import login, register
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
     path('login/', login, name='login'),
+    path('register/', register, name='register'),
 ]
 
 if settings.DEBUG:

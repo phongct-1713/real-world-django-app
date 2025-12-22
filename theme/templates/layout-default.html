@@ -1,23 +1,15 @@
 {% load static tailwind_tags %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Django Tailwind{% endblock %}</title>
     {% tailwind_css %}
-    {% block head_extra %}{% endblock %}
 </head>
 
 <body class="bg-gray-50 text-black font-serif leading-normal tracking-normal">
-
-    <!-- Top toast / alerts area (kept small and optional) -->
-    <div class="toast toast-top toast-end">
-        <div class="alert alert-info">
-            <span>Hello from daisyUi 👋</span>
-        </div>
-    </div>
-
     <!-- Site navigation -->
     <header>
         <div class="navbar bg-base-100 shadow-sm">
@@ -32,7 +24,8 @@
                                 src="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp" />
                         </div>
                     </div>
-                    <ul tabindex="-1" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
+                    <ul tabindex="-1"
+                        class="menu menu-sm dropdown-content bg-base-100 rounded-box z-1 mt-3 w-52 p-2 shadow">
                         <li><a>Profile</a></li>
                         <li><a>Settings</a></li>
                         <li><a>Logout</a></li>
@@ -51,7 +44,6 @@
     <footer class="text-center py-6 text-sm text-gray-600">
         <div class="container mx-auto">&copy; Django Tailwind</div>
     </footer>
-
-    {% block scripts %}{% endblock %}
 </body>
+
 </html>
