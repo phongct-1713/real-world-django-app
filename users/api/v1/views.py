@@ -1,80 +1,66 @@
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Users
-from .serializers import UsersRegistrationSerializer
+from django.contrib.auth import get_user_model
+from rest_framework import viewsets
+from rest_framework import permissions
+from rest_framework.pagination import PageNumberPagination
+from .serializers import UserRegistrationSerializer
 
-@api_view(['POST'])
-def register_user(request):
+User = get_user_model()
 
-    payload = request.data.get('user') or request.data
-    serializer = UsersRegistrationSerializer(data=payload)
+class IsOwnerOrAdmin(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any request
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # Write permissions: allow if user is staff/superuser
+        if request.user and request.user.is_staff:
+            return True
+        # Otherwise only the user themselves may edit/delete their object
+        return obj == request.user
 
-    if serializer.is_valid():
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class UserViewSet(viewsets.ModelViewSet):
+    """CRUD operations for users.
+
+    - POST   /users/        -> create (registration)
+    - GET    /users/        -> list users
+    - GET    /users/{pk}/   -> retrieve
+    - PUT    /users/{pk}/   -> update
+    - PATCH  /users/{pk}/   -> partial_update
+    - DELETE /users/{pk}/   -> destroy
+    """
+
+    queryset = User.objects.all()
+    serializer_class = UserRegistrationSerializer
+    pagination_class = StandardResultsSetPagination
+
+    def create(self, request, *args, **kwargs):
+        # use serializer to create user
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        # create tokens
+        refresh = RefreshToken.for_user(user)
+        data = serializer.data
+        data.update({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        })
+        return Response(data, status=status.HTTP_201_CREATED)
 
-        return Response(
-            {
-                'user': {
-                    'name': user.name,
-                    'email': user.email,
-                    'password': user.password
-                } 
-            },
-            status=status.HTTP_201_CREATED
-        )
-
-    return Response(
-        { 'errors': serializer.errors },
-        status=status.HTTP_400_BAD_REQUEST
-    )
-
-@api_view(['GET', 'PUT', 'DELETE'])
-def get_user(request, user_id):
-
-    try:
-        user = Users.objects.get(id=user_id)
-
-    except Users.DoesNotExist:
-
-        return Response(
-            { 'error': 'User not found' },
-            status = status.HTTP_404_NOT_FOUND
-        )
-
-    if request.method == 'GET':
-
-        serializer = UsersRegistrationSerializer(user)
-
-        return Response(
-            { 'user': serializer.data },
-            status = status.HTTP_200_OK
-        )
-
-    elif request.method == 'PUT':
-        serializer = UsersRegistrationSerializer(user, data = request.data)
-
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response(
-                {
-                    'user': {
-                        'name': user.name,
-                        'email': user.email,
-                        'password': user.password
-                    } 
-                },
-                status=status.HTTP_200_OK
-            )
-
-        return Response(
-            { 'errors': serializer.errors },
-            status = status.HTTP_400_BAD_REQUEST
-        )
-
-    elif request.method == 'DELETE':
-        user.delete()
-
-        return Response(
-            status = status.HTTP_204_NO_CONTENT
-        )
+    def get_permissions(self):
+        # Allow anyone to register
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        # For list and retrieve, require authenticated users
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        # For update/partial_update/destroy, require owner or admin
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrAdmin()]
+        # Default
+        return [permissions.IsAuthenticated()]
